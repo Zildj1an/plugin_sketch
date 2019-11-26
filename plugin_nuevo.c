@@ -12,6 +12,10 @@
 #include <litmus/jobs.h>
 #include <litmus/budget.h>
 
+/* Functions for task state changes*/
+#include <litmus/jobs.h>
+#include <litmus/budget.h>
+
 #define MODULE_NAME         "MI_PLUGIN"
 
 /* FCFS-queue node */
