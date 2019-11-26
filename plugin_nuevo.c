@@ -64,9 +64,9 @@ static struct task_struct* nuevo_schedule(struct task_struct *prev) {
 	unsigned long flags;
         int exists, self_suspends, preempt, resched; /* Prev's task state */
         struct task_struct *next = NULL; /* NULL schedules background work */
-	struct fcfs_queue_node prev_node;
+	struct fcfs_queue_node *prev_node, *next_node;
 
-	spin_lock_irqsave(&state->queue_lock, flags);
+	spin_lock_irqsave(&local_state->queue_lock, flags);
 
         BUG_ON(local_state->scheduled && local_state->scheduled != prev);
 
@@ -84,14 +84,15 @@ static struct task_struct* nuevo_schedule(struct task_struct *prev) {
                 if (exists && !self_suspends) {
 			// Add it to the back
 			prev_node = vmalloc(sizeof(struct fcfs_queue_node));
-			prev_node.task = &local_state->scheduled;
-			list_add_tail(&prev_node.links,&local_state->ghost_node);
+			prev_node->task = &local_state->scheduled;
+			list_add_tail(&prev_node->links,&local_state->ghost_node);
                 	local_state->num_tasks_queued++;
 		}
 
 		if (local_state->num_tasks_queued) {
-			next = list_entry(&local_state->ghost_node->next, struct fcfs_queue_node, links)->task;
-			list_del(list_entry(&local_state->ghost_node->next, struct fcfs_queue_node, links));
+			next_node = list_entry(&local_state->ghost_node->next, struct fcfs_queue_node, links);
+			next = next_node->task;
+			list_del(next_node);
         		local_state->num_tasks_queued--;
 		}
 	} else {
@@ -112,6 +113,29 @@ static struct task_struct* nuevo_schedule(struct task_struct *prev) {
 	spin_unlock_irqrestore(&state->queue_lock, flags);
 
         return next;
+}
+
+/* ====== Possible task states ======= */
+
+static void nuevo_task_new(struct task_struct *tsk, int on_runqueue,int is_running) {
+
+        unsigned long flags; /* IRQ flags. */
+        struct cpu_state *local_state = cpu_state_for(get_partition(tsk));
+        struct fcfs_queue_node *new_node;
+
+        printk(KERN_INFO "There is a new task (on runqueue:%d, running:%d, time: %llu)\n",
+        on_runqueue, is_running, ktime_to_ns(ktime_get()));
+        spin_lock_irqsave(&local_state->queue_lock, flags);
+
+        if (is_running) {
+                BUG_ON(state->scheduled != NULL);
+                local_state->scheduled = tsk;
+        } else if (on_runqueue) {
+                new_node = vmalloc(sizeof(struct fcfs_queue_node));
+                new_node->task = tsk;
+                list_add_tail(&prev_node->links,&local_state->ghost_node);
+        }
+        spin_unlock_irqrestore(&state->queue_lock, flags);
 }
 
 static long nuevo_admit_task(struct task_struct *tsk) {
