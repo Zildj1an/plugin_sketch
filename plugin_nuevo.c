@@ -6,8 +6,6 @@
 #include <linux/vmalloc.h>
 #include <linux/spinlock_types.h>
 
-// https://srcxref.dacya.ucm.es/source/s?defs=litmus_clock&project=litmus-rt
-
 /* #include <some_libraries_TODO_API> */
 #include <litmus/preempt.h>
 #include <litmus/sched_plugin.h>
@@ -65,6 +63,25 @@ static long nuevo_activate_plugin(void) {
     return 0;
 }
 
+/* Auxiliar function */
+struct list_head* findNode(struct task_struct* task, struct list_head* head){
+
+	struct list_head* pos = NULL;
+	struct list_head* aux = NULL;
+	struct fcfs_queue_node* item = NULL;
+	int find = 0;
+
+	for (pos = (head)->next; pos != (head) && !find; pos = pos->next) {
+		item = list_entry(pos, struct fcfs_queue_node, links);
+		find = (item->task == task);
+		aux = pos;
+	}
+
+	if(find) return aux;
+
+	return NULL;
+}
+
 /* Auxiliar function to empty the FCFS queue */
 void removeList(void) {
 
@@ -86,7 +103,7 @@ void removeList(void) {
         }
 	printk(KERN_INFO "All the elements removed from the FCFS queue\n");
 
-	spin_unlock_irqrestore(&state->queue_lock, flags);
+	spin_unlock_irqrestore(&local_state->queue_lock, flags);
 }
 
 static long nuevo_deactivate_plugin(void) {
@@ -128,10 +145,10 @@ static struct task_struct* nuevo_schedule(struct task_struct *prev) {
 		}
 
 		if (local_state->num_tasks_queued) {
-			next_node = list_entry(&local_state->ghost_node->next, struct fcfs_queue_node,
-					       links);
+			next_node = list_first_entry(&local_state->ghost_node,struct fcfs_queue_node,links);
 			next = next_node->task;
-			list_del(next_node);
+			list_del(&next_node->links);
+			vfree(next_node);
         		local_state->num_tasks_queued--;
 		}
 	} else {
@@ -151,7 +168,7 @@ static struct task_struct* nuevo_schedule(struct task_struct *prev) {
          */
         sched_state_task_picked();
 
-	spin_unlock_irqrestore(&state->queue_lock, flags);
+	spin_unlock_irqrestore(&local_state->queue_lock, flags);
 
         return next;
 }
@@ -174,7 +191,7 @@ static void nuevo_task_new(struct task_struct *tsk, int on_runqueue,int is_runni
         } else if (on_runqueue) {
                 new_node = vmalloc(sizeof(struct fcfs_queue_node));
                 new_node->task = tsk;
-                list_add_tail(&prev_node->links,&local_state->ghost_node);
+                list_add_tail(&new_node->links,&local_state->ghost_node);
         	local_state->num_tasks_queued++;
 	}
         spin_unlock_irqrestore(&state->queue_lock, flags);
@@ -191,18 +208,17 @@ static void nuevo_task_exit(struct task_struct *tsk) {
          * is the case when tasks exit by themselves; additional queue management is
          * is required if tasks are forced out by other tasks. */
 
-        if (state->scheduled == tsk)
-                state->scheduled = NULL;
+        if (local_state->scheduled == tsk)
+                local_state->scheduled = NULL;
 
-        spin_unlock_irqrestore(&state->local_queues.ready_lock, flags);
+        spin_unlock_irqrestore(&local_state->local_queues.ready_lock, flags);
 }
 
-static void demo_task_resume(struct task_struct  *tsk) {
+static void nuevo_task_resume(struct task_struct  *tsk) {
 
         unsigned long flags;
-        struct demo_cpu_state *local_state = cpu_state_for(get_partition(tsk));
+        struct cpu_state *local_state = cpu_state_for(get_partition(tsk));
         struct fcfs_queue_node *new_node;
-        lt_t now;
 
         printk("CPU [%d] Task woke up at %llu\n", local_state->cpu, ktime_to_ns(ktime_get()));
 
@@ -211,7 +227,7 @@ static void demo_task_resume(struct task_struct  *tsk) {
         /* Check required to avoid races with tasks that resume before
          * the scheduler "noticed" that it resumed. That is, the wake up may
          * race with the call to schedule(). */
-        if (state->scheduled != tsk) {
+        if (local_state->scheduled != tsk) {
                 new_node = vmalloc(sizeof(struct fcfs_queue_node));
                 new_node->task = tsk;
                 list_add_tail(&prev_node->links,&local_state->ghost_node);
@@ -223,12 +239,14 @@ static void demo_task_resume(struct task_struct  *tsk) {
 
 static long nuevo_admit_task(struct task_struct *tsk) {
 
+	int ret = -EINVAL;
+
         if (task_cpu(tsk) == get_partition(tsk)) {
                 printk(KERN_INFO "CPU [%d] ->  New task admitted \n",
-                        cpu_state_for(get_partition(tsk)->cpu);
-                return 0;
+                        cpu_state_for(get_partition(tsk))->cpu);
+                ret = 0;
         }
-        return -EINVAL;
+        return ret;
 }
 
 static struct sched_plugin nuevo_plugin = {
