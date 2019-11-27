@@ -1,10 +1,13 @@
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/percpu.h>       /* CPU-local allocations */
 #include <linux/sched.h>        /* struct task_struct    */
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 #include <linux/spinlock_types.h>
+#include <linux/proc_fs.h>
+#include <linux/uaccess.h>	/* copy_(from/to)_user */
 
 /* #include <some_libraries_TODO_API> */
 #include <litmus/preempt.h>
@@ -186,7 +189,7 @@ static void nuevo_task_new(struct task_struct *tsk, int on_runqueue,int is_runni
         spin_lock_irqsave(&local_state->queue_lock, flags);
 
         if (is_running) {
-                BUG_ON(state->scheduled != NULL);
+                BUG_ON(local_state->scheduled != NULL);
                 local_state->scheduled = tsk;
         } else if (on_runqueue) {
                 new_node = vmalloc(sizeof(struct fcfs_queue_node));
@@ -194,7 +197,7 @@ static void nuevo_task_new(struct task_struct *tsk, int on_runqueue,int is_runni
                 list_add_tail(&new_node->links,&local_state->ghost_node);
         	local_state->num_tasks_queued++;
 	}
-        spin_unlock_irqrestore(&state->queue_lock, flags);
+        spin_unlock_irqrestore(&local_state->queue_lock, flags);
 }
 
 static void nuevo_task_exit(struct task_struct *tsk) {
@@ -230,7 +233,7 @@ static void nuevo_task_resume(struct task_struct  *tsk) {
         if (local_state->scheduled != tsk) {
                 new_node = vmalloc(sizeof(struct fcfs_queue_node));
                 new_node->task = tsk;
-                list_add_tail(&prev_node->links,&local_state->ghost_node);
+                list_add_tail(&new_node->links,&local_state->ghost_node);
         	local_state->num_tasks_queued++;
         }
 
@@ -269,13 +272,13 @@ static ssize_t nuevo_read(struct file *filp, char __user *buf, size_t len, loff_
 
     if ((*off) > 0) return 0; //Previously invoked!
 
-    strncpy(kbuf[read],&cpu,strlen((const char*)cpu));
+    strncpy(kbuf[read],cpu,strlen((const char*)cpu));
     read += strlen((const char*)cpu);
 
     for_each_online_cpu(cpu){
         local_state = cpu_state_for(cpu);
-        read += sprintf(&kbuf[read],"%d\n",cpu);
-        strncpy(kbuf[read],&cpu,strlen((const char*)sp));
+        read += sprintf(&kbuf[read],"%s\n",cpu);
+        strncpy(&kbuf[read],(char*)local_state->cpu,strlen((const char*)sp));
         read += strlen((const char*)sp);
         read += sprintf(&kbuf[read],"%i\n",local_state->num_tasks_queued);
         kbuf[read++] = '\n';
