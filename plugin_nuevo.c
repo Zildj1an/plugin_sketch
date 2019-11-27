@@ -4,6 +4,7 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
+#include <linux/spinlock_types.h>
 
 // https://srcxref.dacya.ucm.es/source/s?defs=litmus_clock&project=litmus-rt
 
@@ -71,6 +72,7 @@ void removeList(void) {
         struct list_head* cur_node = NULL;
         struct list_head* aux = NULL;
         struct fcfs_queue_node* item = NULL;
+	unsigned long flags;
 
 	local_state->num_tasks_queued = 0;
 
@@ -78,7 +80,7 @@ void removeList(void) {
 
         list_for_each_safe(cur_node, aux, &local_state->ghost_node) {
 
-                item = list_entry(cur_node, struct list_item, links);
+                item = list_entry(cur_node, struct fcfs_queue_node, links);
                 list_del(&item->links);
 		vfree(item);
         }
@@ -120,7 +122,7 @@ static struct task_struct* nuevo_schedule(struct task_struct *prev) {
                 if (likely(exists && !self_suspends)) {
 			// Add it to the back
 			prev_node = vmalloc(sizeof(struct fcfs_queue_node));
-			prev_node->task = &local_state->scheduled;
+			prev_node->task = local_state->scheduled;
 			list_add_tail(&prev_node->links,&local_state->ghost_node);
                 	local_state->num_tasks_queued++;
 		}
