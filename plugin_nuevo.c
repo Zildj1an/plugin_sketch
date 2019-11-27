@@ -5,6 +5,8 @@
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 
+// https://srcxref.dacya.ucm.es/source/s?defs=litmus_clock&project=litmus-rt
+
 /* #include <some_libraries_TODO_API> */
 #include <litmus/preempt.h>
 #include <litmus/sched_plugin.h>
