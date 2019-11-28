@@ -21,6 +21,9 @@
 #include <litmus/jobs.h>
 #include <litmus/budget.h>
 
+/* Special ADT from Juan Carlos Saez */
+#include "list_jcsaez.h"
+
 #define MAX_SIZE 	    500
 #define MODULE_NAME         "MI_PLUGIN"
 
@@ -36,20 +39,29 @@ struct fcfs_queue_node {
 /* CPU state */
 struct cpu_state {
         int cpu;
-	int num_tasks_queued;
         struct task_struct* scheduled;
         spinlock_t queue_lock;
-        /* FCFS-queue ghost node*/
-        struct list_head ghost_node;
+        /* FCFS-queue special queue*/
+        sized_list_t fcfs_queue;
+        struct list_head link_queue;
 };
 
 static DEFINE_PER_CPU(struct cpu_state, cpu_state);
 #define cpu_state_for(cpu_id)   (&per_cpu(cpu_state, cpu_id))
 #define local_cpu_state()       (this_cpu_ptr(&cpu_state))
 
+static void inline add_tail(struct *cpu_state local_state, struct task_struct* task) {
+
+	struct fcfs_queue_node *node;
+	node = kmalloc(sizeof(struct fcfs_queue_node), GFP_KERNEL);
+        node->task = task;
+        insert_sized_list_tail(&local_state->fcfs_queue,node);
+}
+
 static long nuevo_activate_plugin(void) {
 
         int cpu;
+	unsigned long flags;
         struct cpu_state *state;
 
         for_each_online_cpu(cpu){
@@ -59,54 +71,14 @@ static long nuevo_activate_plugin(void) {
 		state->num_tasks_queued = 0;
                 state->queue_lock = SPIN_LOCK_UNLOCKED;
 	        state->scheduled = NULL;
-                INIT_LIST_HEAD(&state->ghost_node);
-        }
+		spin_lock_irqsave(&state->queue_lock, flags);
+                init_sized_list(&state->fcfs_queue,offsetof(fcfs_queue_node,
+	                          links));
+        	spin_unlock_irqrestore(&state->queue_lock, flags);
+	}
         try_module_get(THIS_MODULE); /* Increase counter */
 
     return 0;
-}
-
-/* Auxiliar function */
-struct list_head* findNode(struct task_struct* task, struct list_head* head){
-
-	struct list_head* pos = NULL;
-	struct list_head* aux = NULL;
-	struct fcfs_queue_node* item = NULL;
-	int find = 0;
-
-	for (pos = (head)->next; pos != (head) && !find; pos = pos->next) {
-		item = list_entry(pos, struct fcfs_queue_node, links);
-		find = (item->task == task);
-		aux = pos;
-	}
-
-	if(find) return aux;
-
-	return NULL;
-}
-
-/* Auxiliar function to empty the FCFS queue */
-void removeList(void) {
-
-	struct cpu_state *local_state = local_cpu_state();
-        struct list_head* cur_node = NULL;
-        struct list_head* aux = NULL;
-        struct fcfs_queue_node* item = NULL;
-	unsigned long flags;
-
-	local_state->num_tasks_queued = 0;
-
-	spin_lock_irqsave(&local_state->queue_lock, flags);
-
-        list_for_each_safe(cur_node, aux, &local_state->ghost_node) {
-
-                item = list_entry(cur_node, struct fcfs_queue_node, links);
-                list_del(&item->links);
-		vfree(item);
-        }
-	printk(KERN_INFO "All the elements removed from the FCFS queue\n");
-
-	spin_unlock_irqrestore(&local_state->queue_lock, flags);
 }
 
 static long nuevo_deactivate_plugin(void) {
@@ -122,14 +94,15 @@ static struct task_struct* nuevo_schedule(struct task_struct *prev) {
 	unsigned long flags;
         int exists, self_suspends = 0, preempt, resched; /* Prev's task state */
         struct task_struct *next = NULL; /* NULL schedules background work */
-	struct fcfs_queue_node *prev_node, *next_node;
+	struct fcfs_queue_node *next_node;
 
 	spin_lock_irqsave(&local_state->queue_lock, flags);
 
         BUG_ON(local_state->scheduled && local_state->scheduled != prev);
 
         exists = local_state->scheduled != NULL;
-//        self_suspends = exists && !is_current_running(); Ignore this function (jobs.c)
+//      self_suspends = exists && !is_current_running(); Ignore this function (jobs.c)
+
         /* preempt is true if task `prev` has lower priority than something on
          * the FSCFS ready queue. In this case we will assume this true.*/
         preempt = 1;
@@ -137,22 +110,17 @@ static struct task_struct* nuevo_schedule(struct task_struct *prev) {
         resched = preempt;
         /* if `prev` suspends, it CANNOT be scheduled anymore => reschedule */
         if (self_suspends) resched = 1;
+
         if (resched) {
                 /* The previous task goes to the ready queue back if it did not self_suspend) */
                 if (likely(exists && !self_suspends)) {
-			// Add it to the back
-			prev_node = vmalloc(sizeof(struct fcfs_queue_node));
-			prev_node->task = local_state->scheduled;
-			list_add_tail(&prev_node->links,&local_state->ghost_node);
-                	local_state->num_tasks_queued++;
+			add_tail(&local_state, &local_state->scheduled);
 		}
 
-		if (local_state->num_tasks_queued) {
-			next_node = list_first_entry(&local_state->ghost_node,struct fcfs_queue_node,links);
+		if (likely(sized_list_length(&local_state->fcfs_queue))) {
+			next_node = head_sized_list(&local_state->fcfs_queue);
 			next = next_node->task;
-			list_del(&next_node->links);
-			vfree(next_node);
-        		local_state->num_tasks_queued--;
+			remove_sized_list(&next_node);
 		}
 	} else {
 		next = local_state->scheduled;	 /* No preemption is required. */
@@ -160,10 +128,12 @@ static struct task_struct* nuevo_schedule(struct task_struct *prev) {
 
         local_state->scheduled = next;
 
-        if (exists && prev != next)
+        if (exists && prev != next) {
 		printk(KERN_INFO "CPU [%d] -> Previous task descheduled.\n", local_state->cpu);
-        if (next)
+	}
+        if (next) {
 		printk(KERN_INFO "CPU [%d] -> New task scheduled.\n", local_state->cpu);
+	}
 
         /* This mandatory. It triggers a transition in the LITMUS^RT remote
          * preemption state machine. Call this AFTER the plugin has made a local
@@ -176,7 +146,10 @@ static struct task_struct* nuevo_schedule(struct task_struct *prev) {
         return next;
 }
 
-/* ====== Possible task states ======= */
+/* ============================================
+   =========== Possible task states ===========
+   ============================================
+*/
 
 static void nuevo_task_new(struct task_struct *tsk, int on_runqueue,int is_running) {
 
@@ -192,10 +165,7 @@ static void nuevo_task_new(struct task_struct *tsk, int on_runqueue,int is_runni
                 BUG_ON(local_state->scheduled != NULL);
                 local_state->scheduled = tsk;
         } else if (on_runqueue) {
-                new_node = vmalloc(sizeof(struct fcfs_queue_node));
-                new_node->task = tsk;
-                list_add_tail(&new_node->links,&local_state->ghost_node);
-        	local_state->num_tasks_queued++;
+		add_tail(&local_state, tsk);
 	}
         spin_unlock_irqrestore(&local_state->queue_lock, flags);
 }
@@ -231,10 +201,7 @@ static void nuevo_task_resume(struct task_struct  *tsk) {
          * the scheduler "noticed" that it resumed. That is, the wake up may
          * race with the call to schedule(). */
         if (local_state->scheduled != tsk) {
-                new_node = vmalloc(sizeof(struct fcfs_queue_node));
-                new_node->task = tsk;
-                list_add_tail(&new_node->links,&local_state->ghost_node);
-        	local_state->num_tasks_queued++;
+		add_tail(&local_state, tsk);
         }
 
         spin_unlock_irqrestore(&local_state->queue_lock, flags);
@@ -280,7 +247,7 @@ static ssize_t nuevo_read(struct file *filp, char __user *buf, size_t len, loff_
         read += sprintf(&kbuf[read],"%s\n",cpu);
         strncpy(&kbuf[read],(char*)local_state->cpu,strlen((const char*)sp));
         read += strlen((const char*)sp);
-        read += sprintf(&kbuf[read],"%i\n",local_state->num_tasks_queued);
+        read += sprintf(&kbuf[read],"%i\n",sized_list_length(&local_state->fcfs_queue)));
         kbuf[read++] = '\n';
     }
 
