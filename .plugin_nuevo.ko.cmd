@@ -1,0 +1,1 @@
+cmd_/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.ko := ld -r -m elf_x86_64 -T ./scripts/module-common.lds --build-id  -o /home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.ko /home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.o /home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.mod.o ;  true

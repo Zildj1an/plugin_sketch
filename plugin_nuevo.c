@@ -85,7 +85,7 @@ static long nuevo_activate_plugin(void) {
                 state->cpu = cpu;
 	        state->scheduled = NULL;
 		spin_lock_irqsave(&state->queue_lock, flags);
-                init_sized_list(&state->fcfs_queue,offsetof(state->fcfs_queue_node,
+                init_sized_list(&state->fcfs_queue,offsetof(struct fcfs_queue_node,
 	                          links));
         	spin_unlock_irqrestore(&state->queue_lock, flags);
 	}
