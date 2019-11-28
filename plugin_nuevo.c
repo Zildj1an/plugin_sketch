@@ -24,7 +24,7 @@
 /* Special ADT from Juan Carlos Saez */
 #include "list_jcsaez.h"
 
-#define MAX_SIZE 	    500
+#define MAX_SIZE 	    1000
 #define MODULE_NAME         "MI_PLUGIN"
 
 MODULE_LICENSE("GPL");
@@ -250,6 +250,7 @@ static struct sched_plugin nuevo_plugin = {
 static ssize_t nuevo_read(struct file *filp, char __user *buf, size_t len, loff_t *off) {
 
     int cpu, read = 0;
+    char t1[] = "  ", t2[] = " ";
     struct cpu_state *local_state;
     char kbuf[MAX_SIZE];
 
@@ -259,12 +260,8 @@ static ssize_t nuevo_read(struct file *filp, char __user *buf, size_t len, loff_
 
     for_each_online_cpu(cpu){
         local_state = cpu_state_for(cpu);
-	if(cpu < 10)
-		read += sprintf(&kbuf[read],"CPU [ %i]................... %i\n",
-			cpu,(int)sized_list_length(&local_state->fcfs_queue));
-	else
-		read += sprintf(&kbuf[read],"CPU [%i]................... %i\n",
-                        cpu,(int)sized_list_length(&local_state->fcfs_queue));
+	read += sprintf(&kbuf[read],"CPU [%s%i]................... %i\n",
+		(cpu<10)? t1:t2,cpu,(int)sized_list_length(&local_state->fcfs_queue));
     }
 
     kbuf[read++] = '\0';
