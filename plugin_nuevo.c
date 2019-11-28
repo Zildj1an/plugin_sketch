@@ -3,9 +3,9 @@
 #include <linux/percpu.h>       /* CPU-local allocations */
 #include <linux/sched.h>        /* struct task_struct    */
 #include <linux/list.h>
+#include <linux/slab.h>		/* kmalloc */
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
-#include <linux/spinlock_types.h>
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>	/* copy_(from/to)_user */
 
@@ -50,7 +50,7 @@ static DEFINE_PER_CPU(struct cpu_state, cpu_state);
 #define cpu_state_for(cpu_id)   (&per_cpu(cpu_state, cpu_id))
 #define local_cpu_state()       (this_cpu_ptr(&cpu_state))
 
-static inline void add_tail(struct *cpu_state local_state, struct task_struct* task) {
+static inline void add_tail(struct cpu_state* local_state, struct task_struct* task) {
 
 	struct fcfs_queue_node *node;
 	node = kmalloc(sizeof(struct fcfs_queue_node), GFP_KERNEL);
@@ -83,11 +83,9 @@ static long nuevo_activate_plugin(void) {
                 printk(KERN_INFO "Initializing CPU %d...\n",cpu);
                 state = cpu_state_for(cpu);
                 state->cpu = cpu;
-		state->num_tasks_queued = 0;
-                state->queue_lock = SPIN_LOCK_UNLOCKED;
 	        state->scheduled = NULL;
 		spin_lock_irqsave(&state->queue_lock, flags);
-                init_sized_list(&state->fcfs_queue,offsetof(fcfs_queue_node,
+                init_sized_list(&state->fcfs_queue,offsetof(state->fcfs_queue_node,
 	                          links));
         	spin_unlock_irqrestore(&state->queue_lock, flags);
 	}
@@ -130,13 +128,13 @@ static struct task_struct* nuevo_schedule(struct task_struct *prev) {
         if (resched) {
                 /* The previous task goes to the ready queue back if it did not self_suspend) */
                 if (likely(exists && !self_suspends)) {
-			add_tail(&local_state, &local_state->scheduled);
+			add_tail(local_state, local_state->scheduled);
 		}
 
 		if (likely(sized_list_length(&local_state->fcfs_queue))) {
 			next_node = head_sized_list(&local_state->fcfs_queue);
 			next = next_node->task;
-			remove_sized_list(&next_node);
+			remove_sized_list(&local_state->fcfs_queue,&next_node);
 		}
 	} else {
 		next = local_state->scheduled;	 /* No preemption is required. */
@@ -171,7 +169,6 @@ static void nuevo_task_new(struct task_struct *tsk, int on_runqueue,int is_runni
 
         unsigned long flags; /* IRQ flags. */
         struct cpu_state *local_state = cpu_state_for(get_partition(tsk));
-        struct fcfs_queue_node *new_node;
 
         printk(KERN_INFO "CPU [%d] -> There is a new task (on runqueue:%d, running:%d, time: %llu)\n",
                                local_state->cpu,on_runqueue, is_running, ktime_to_ns(ktime_get()));
@@ -181,7 +178,7 @@ static void nuevo_task_new(struct task_struct *tsk, int on_runqueue,int is_runni
                 BUG_ON(local_state->scheduled != NULL);
                 local_state->scheduled = tsk;
         } else if (on_runqueue) {
-		add_tail(&local_state, tsk);
+		add_tail(local_state, tsk);
 	}
         spin_unlock_irqrestore(&local_state->queue_lock, flags);
 }
@@ -200,14 +197,13 @@ static void nuevo_task_exit(struct task_struct *tsk) {
         if (local_state->scheduled == tsk)
                 local_state->scheduled = NULL;
 
-        spin_unlock_irqrestore(&local_state->local_queues.ready_lock, flags);
+        spin_unlock_irqrestore(&local_state->queue_lock, flags);
 }
 
 static void nuevo_task_resume(struct task_struct  *tsk) {
 
         unsigned long flags;
         struct cpu_state *local_state = cpu_state_for(get_partition(tsk));
-        struct fcfs_queue_node *new_node;
 
         printk("CPU [%d] Task woke up at %llu\n", local_state->cpu, ktime_to_ns(ktime_get()));
 
@@ -217,7 +213,7 @@ static void nuevo_task_resume(struct task_struct  *tsk) {
          * the scheduler "noticed" that it resumed. That is, the wake up may
          * race with the call to schedule(). */
         if (local_state->scheduled != tsk) {
-		add_tail(&local_state, tsk);
+		add_tail(local_state, tsk);
         }
 
         spin_unlock_irqrestore(&local_state->queue_lock, flags);
@@ -251,19 +247,15 @@ static ssize_t nuevo_read(struct file *filp, char __user *buf, size_t len, loff_
 
     int cpu, read = 0;
     struct cpu_state *local_state; char sp[] = "     ";
-    char kbuf[MAX_SIZE]; char cpu[] = "CPU     NUM_SCUEDULES";
+    char kbuf[MAX_SIZE]; char cpu_display[] = "CPU     NUM_SCHEDULES";
 
     if ((*off) > 0) return 0; //Previously invoked!
 
-    strncpy(kbuf[read],cpu,strlen((const char*)cpu));
-    read += strlen((const char*)cpu);
+    read += sprintf(&kbuf[read],"%s", cpu_display);
 
     for_each_online_cpu(cpu){
         local_state = cpu_state_for(cpu);
-        read += sprintf(&kbuf[read],"%s\n",cpu);
-        strncpy(&kbuf[read],(char*)local_state->cpu,strlen((const char*)sp));
-        read += strlen((const char*)sp);
-        read += sprintf(&kbuf[read],"%i\n",sized_list_length(&local_state->fcfs_queue)));
+	read += sprintf(&kbuf[read],"%i%s%i\n",cpu,sp,(int)sized_list_length(&local_state->fcfs_queue));
         kbuf[read++] = '\n';
     }
 
