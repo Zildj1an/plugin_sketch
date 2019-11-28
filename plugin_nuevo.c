@@ -256,7 +256,7 @@ static ssize_t nuevo_read(struct file *filp, char __user *buf, size_t len, loff_
 
     if ((*off) > 0) return 0; //Previously invoked!
 
-    read += sprintf(&kbuf[read],"Core Num  ________________ NUM_QUEUED\n");
+    read += sprintf(&kbuf[read],"Core Num  _________________ NUM_QUEUED\n");
 
     for_each_online_cpu(cpu){
         local_state = cpu_state_for(cpu);
