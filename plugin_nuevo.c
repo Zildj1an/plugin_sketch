@@ -27,6 +27,10 @@
 #define MAX_SIZE 	    500
 #define MODULE_NAME         "MI_PLUGIN"
 
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Carlos Bilbao");
+MODULE_DESCRIPTION("The FCFS scheduling algorithm");
+
 /* My /proc file entry */
 static struct proc_dir_entry *my_proc_entry;
 
