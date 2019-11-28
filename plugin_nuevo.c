@@ -255,12 +255,16 @@ static ssize_t nuevo_read(struct file *filp, char __user *buf, size_t len, loff_
 
     if ((*off) > 0) return 0; //Previously invoked!
 
-    read += sprintf(&kbuf[read],"CPU ________________ NUM_QUEUED\n");
+    read += sprintf(&kbuf[read],"Core Num  ________________ NUM_QUEUED\n");
 
     for_each_online_cpu(cpu){
         local_state = cpu_state_for(cpu);
-	read += sprintf(&kbuf[read],"CPU [%i]................ %i\n",
+	if(cpu < 10)
+		read += sprintf(&kbuf[read],"CPU [ %i]................... %i\n",
 			cpu,(int)sized_list_length(&local_state->fcfs_queue));
+	else
+		read += sprintf(&kbuf[read],"CPU [%i]................... %i\n",
+                        cpu,(int)sized_list_length(&local_state->fcfs_queue));
     }
 
     kbuf[read++] = '\0';
