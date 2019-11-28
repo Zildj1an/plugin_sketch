@@ -297,6 +297,7 @@ static void exit_nuevo(void) {
     */
     unregister_sched_plugin(&nuevo_plugin);
     remove_proc_entry("fcfs_althm", NULL);
+    printk(KERN_INFO "Plugin %s removed\n",MODULE_NAME);
 }
 
 module_init(init_nuevo);
