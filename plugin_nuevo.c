@@ -250,14 +250,15 @@ static struct sched_plugin nuevo_plugin = {
 static ssize_t nuevo_read(struct file *filp, char __user *buf, size_t len, loff_t *off) {
 
     int cpu, read = 0;
-    struct cpu_state *local_state; char sp[] = "     ";
-    char kbuf[MAX_SIZE]; char cpu_display[] = "CPU     NUM_SCHEDULES";
+    struct cpu_state *local_state; char sp[] = ".......";
+    char kbuf[MAX_SIZE]; char cpu_display[] = "CPU_______NUM_SCHEDULES";
 
     if ((*off) > 0) return 0; //Previously invoked!
 
     read += sprintf(&kbuf[read],"%s", cpu_display);
 
     for_each_online_cpu(cpu){
+	kbuf[read++] = '\n';
         local_state = cpu_state_for(cpu);
 	read += sprintf(&kbuf[read],"%i%s%i\n",cpu,sp,(int)sized_list_length(&local_state->fcfs_queue));
         kbuf[read++] = '\n';
