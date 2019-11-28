@@ -260,7 +260,8 @@ static ssize_t nuevo_read(struct file *filp, char __user *buf, size_t len, loff_
 
     for_each_online_cpu(cpu){
         local_state = cpu_state_for(cpu);
-	read += sprintf(&kbuf[read],"CPU [%s%i]................... %i\n",
+	if(read < MAX_SIZE)
+	      read += sprintf(&kbuf[read],"CPU [%s%i]................... %i\n",
 		(cpu<10)? t1:t2,cpu,(int)sized_list_length(&local_state->fcfs_queue));
     }
 
