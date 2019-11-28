@@ -1,20 +1,70 @@
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:53:36: error: expected '{' before '*' token
+ static void inline add_tail(struct *cpu_state local_state, struct task_struct* task) {
+                                    ^
 /home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c: In function 'nuevo_activate_plugin':
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:60:37: error: 'SPIN_LOCK_UNLOCKED' undeclared (first use in this function)
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:71:8: error: 'struct cpu_state' has no member named 'num_tasks_queued'
+   state->num_tasks_queued = 0;
+        ^~
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:72:37: error: 'SPIN_LOCK_UNLOCKED' undeclared (first use in this function)
                  state->queue_lock = SPIN_LOCK_UNLOCKED;
                                      ^~~~~~~~~~~~~~~~~~
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:60:37: note: each undeclared identifier is reported only once for each function it appears in
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:72:37: note: each undeclared identifier is reported only once for each function it appears in
+In file included from ./include/linux/compiler.h:58:0,
+                 from ./include/uapi/linux/stddef.h:1,
+                 from ./include/linux/stddef.h:4,
+                 from ./include/uapi/linux/posix_types.h:4,
+                 from ./include/uapi/linux/types.h:13,
+                 from ./include/linux/types.h:5,
+                 from ./include/linux/list.h:4,
+                 from ./include/linux/module.h:9,
+                 from /home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:1:
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:75:61: error: unknown type name 'fcfs_queue_node'
+                 init_sized_list(&state->fcfs_queue,offsetof(fcfs_queue_node,
+                                                             ^
+./include/linux/compiler-gcc.h:159:21: note: in definition of macro '__compiler_offsetof'
+  __builtin_offsetof(a, b)
+                     ^
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:75:52: note: in expansion of macro 'offsetof'
+                 init_sized_list(&state->fcfs_queue,offsetof(fcfs_queue_node,
+                                                    ^~~~~~~~
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c: In function 'nuevo_schedule':
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:117:4: error: implicit declaration of function 'add_tail' [-Werror=implicit-function-declaration]
+    add_tail(&local_state, &local_state->scheduled);
+    ^~~~~~~~
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:123:22: error: passing argument 1 of 'remove_sized_list' from incompatible pointer type [-Werror=incompatible-pointer-types]
+    remove_sized_list(&next_node);
+                      ^
+In file included from /home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:25:0:
+/home/bench/Carlos/plugins/plugin_sketch/list_jcsaez.h:48:20: note: expected 'sized_list_t * {aka struct sized_list *}' but argument is of type 'struct fcfs_queue_node **'
+ static inline void remove_sized_list ( sized_list_t* slist, void* elem)
+                    ^~~~~~~~~~~~~~~~~
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:123:4: error: too few arguments to function 'remove_sized_list'
+    remove_sized_list(&next_node);
+    ^~~~~~~~~~~~~~~~~
+In file included from /home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:25:0:
+/home/bench/Carlos/plugins/plugin_sketch/list_jcsaez.h:48:20: note: declared here
+ static inline void remove_sized_list ( sized_list_t* slist, void* elem)
+                    ^~~~~~~~~~~~~~~~~
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c: In function 'nuevo_task_new':
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:158:33: warning: unused variable 'new_node' [-Wunused-variable]
+         struct fcfs_queue_node *new_node;
+                                 ^~~~~~~~
 /home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c: In function 'nuevo_task_exit':
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:217:44: error: 'struct cpu_state' has no member named 'local_queues'
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:187:44: error: 'struct cpu_state' has no member named 'local_queues'; did you mean 'fcfs_queue'?
          spin_unlock_irqrestore(&local_state->local_queues.ready_lock, flags);
                                             ^~
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c: In function 'nuevo_task_resume':
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:194:33: warning: unused variable 'new_node' [-Wunused-variable]
+         struct fcfs_queue_node *new_node;
+                                 ^~~~~~~~
 /home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c: In function 'nuevo_read':
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:271:31: error: conflicting types for 'cpu'
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:238:31: error: conflicting types for 'cpu'
      char kbuf[MAX_SIZE]; char cpu[] = "CPU     NUM_SCUEDULES";
                                ^~~
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:269:9: note: previous declaration of 'cpu' was here
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:236:9: note: previous declaration of 'cpu' was here
      int cpu, read = 0;
          ^~~
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:275:13: warning: passing argument 1 of 'strncpy' makes pointer from integer without a cast [-Wint-conversion]
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:242:13: warning: passing argument 1 of 'strncpy' makes pointer from integer without a cast [-Wint-conversion]
      strncpy(kbuf[read],cpu,strlen((const char*)cpu));
              ^~~~
 In file included from ./include/linux/bitmap.h:8:0,
@@ -56,7 +106,7 @@ In file included from ./arch/x86/include/asm/cpumask.h:4:0,
 ./include/linux/cpumask.h:717:36: note: in expansion of macro 'for_each_cpu'
  #define for_each_online_cpu(cpu)   for_each_cpu((cpu), cpu_online_mask)
                                     ^~~~~~~~~~~~
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:278:5: note: in expansion of macro 'for_each_online_cpu'
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:245:5: note: in expansion of macro 'for_each_online_cpu'
      for_each_online_cpu(cpu){
      ^~~~~~~~~~~~~~~~~~~
 ./include/linux/cpumask.h:224:24: warning: passing argument 1 of 'cpumask_next' makes integer from pointer without a cast [-Wint-conversion]
@@ -65,7 +115,7 @@ In file included from ./arch/x86/include/asm/cpumask.h:4:0,
 ./include/linux/cpumask.h:717:36: note: in expansion of macro 'for_each_cpu'
  #define for_each_online_cpu(cpu)   for_each_cpu((cpu), cpu_online_mask)
                                     ^~~~~~~~~~~~
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:278:5: note: in expansion of macro 'for_each_online_cpu'
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:245:5: note: in expansion of macro 'for_each_online_cpu'
      for_each_online_cpu(cpu){
      ^~~~~~~~~~~~~~~~~~~
 ./include/linux/cpumask.h:188:28: note: expected 'int' but argument is of type 'char *'
@@ -77,7 +127,7 @@ In file included from ./arch/x86/include/asm/cpumask.h:4:0,
 ./include/linux/cpumask.h:717:36: note: in expansion of macro 'for_each_cpu'
  #define for_each_online_cpu(cpu)   for_each_cpu((cpu), cpu_online_mask)
                                     ^~~~~~~~~~~~
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:278:5: note: in expansion of macro 'for_each_online_cpu'
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:245:5: note: in expansion of macro 'for_each_online_cpu'
      for_each_online_cpu(cpu){
      ^~~~~~~~~~~~~~~~~~~
 ./include/linux/cpumask.h:225:9: warning: comparison between pointer and integer
@@ -86,7 +136,7 @@ In file included from ./arch/x86/include/asm/cpumask.h:4:0,
 ./include/linux/cpumask.h:717:36: note: in expansion of macro 'for_each_cpu'
  #define for_each_online_cpu(cpu)   for_each_cpu((cpu), cpu_online_mask)
                                     ^~~~~~~~~~~~
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:278:5: note: in expansion of macro 'for_each_online_cpu'
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:245:5: note: in expansion of macro 'for_each_online_cpu'
      for_each_online_cpu(cpu){
      ^~~~~~~~~~~~~~~~~~~
 ./include/linux/cpumask.h:224:38: warning: left-hand operand of comma expression has no effect [-Wunused-value]
@@ -95,7 +145,7 @@ In file included from ./arch/x86/include/asm/cpumask.h:4:0,
 ./include/linux/cpumask.h:717:36: note: in expansion of macro 'for_each_cpu'
  #define for_each_online_cpu(cpu)   for_each_cpu((cpu), cpu_online_mask)
                                     ^~~~~~~~~~~~
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:278:5: note: in expansion of macro 'for_each_online_cpu'
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:245:5: note: in expansion of macro 'for_each_online_cpu'
      for_each_online_cpu(cpu){
      ^~~~~~~~~~~~~~~~~~~
 In file included from ./include/linux/compiler.h:58:0,
@@ -122,15 +172,27 @@ In file included from ./include/linux/compiler.h:58:0,
 ./include/linux/percpu-defs.h:256:29: note: in expansion of macro 'per_cpu_ptr'
  #define per_cpu(var, cpu) (*per_cpu_ptr(&(var), cpu))
                              ^~~~~~~~~~~
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:47:35: note: in expansion of macro 'per_cpu'
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:50:35: note: in expansion of macro 'per_cpu'
  #define cpu_state_for(cpu_id)   (&per_cpu(cpu_state, cpu_id))
                                    ^~~~~~~
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:279:23: note: in expansion of macro 'cpu_state_for'
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:246:23: note: in expansion of macro 'cpu_state_for'
          local_state = cpu_state_for(cpu);
                        ^~~~~~~~~~~~~
-/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:281:29: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:248:29: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
          strncpy(&kbuf[read],(char*)local_state->cpu,strlen((const char*)sp));
                              ^
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:250:39: warning: format '%i' expects argument of type 'int', but argument 3 has type 'size_t {aka long unsigned int}' [-Wformat=]
+         read += sprintf(&kbuf[read],"%i\n",sized_list_length(&local_state->fcfs_queue)));
+                                       ^
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:250:88: error: expected ';' before ')' token
+         read += sprintf(&kbuf[read],"%i\n",sized_list_length(&local_state->fcfs_queue)));
+                                                                                        ^
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:250:88: error: expected statement before ')' token
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c: In function 'exit_nuevo':
+/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.c:287:5: error: implicit declaration of function 'removeList' [-Werror=implicit-function-declaration]
+     removeList();
+     ^~~~~~~~~~
+cc1: some warnings being treated as errors
 make[2]: *** [/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.o] Error 1
 make[1]: *** [_module_/home/bench/Carlos/plugins/plugin_sketch] Error 2
 make: *** [all] Error 2
