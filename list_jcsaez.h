@@ -65,6 +65,15 @@ static inline void* head_sized_list ( sized_list_t* slist)
 	return first_item;
 }
 
+static inline void remove_sized_list_all ( sized_list_t* slist)
+{
+  while (sized_list_length(slist)) {
+        remove_sized_list(slist,head_sized_list(slist));
+  }
+
+}
+
+
 static inline void* tail_sized_list  ( sized_list_t* slist)
 {
 	struct list_head *last=NULL;

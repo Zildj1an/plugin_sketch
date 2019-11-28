@@ -50,12 +50,27 @@ static DEFINE_PER_CPU(struct cpu_state, cpu_state);
 #define cpu_state_for(cpu_id)   (&per_cpu(cpu_state, cpu_id))
 #define local_cpu_state()       (this_cpu_ptr(&cpu_state))
 
-static void inline add_tail(struct *cpu_state local_state, struct task_struct* task) {
+static inline void add_tail(struct *cpu_state local_state, struct task_struct* task) {
 
 	struct fcfs_queue_node *node;
 	node = kmalloc(sizeof(struct fcfs_queue_node), GFP_KERNEL);
         node->task = task;
         insert_sized_list_tail(&local_state->fcfs_queue,node);
+}
+
+static void remove_List(void) {
+
+	int cpu;
+        unsigned long flags;
+        struct cpu_state *state;
+
+        for_each_online_cpu(cpu){
+                printk(KERN_INFO "Removing list from CPU %d...\n",cpu);
+                state = cpu_state_for(cpu);
+                spin_lock_irqsave(&state->queue_lock, flags);
+		remove_sized_list_all(&state->fcfs_queue);
+                spin_unlock_irqrestore(&state->queue_lock, flags);
+        }
 }
 
 static long nuevo_activate_plugin(void) {
@@ -84,6 +99,7 @@ static long nuevo_activate_plugin(void) {
 static long nuevo_deactivate_plugin(void) {
 
     module_put(THIS_MODULE); /* Decrease counter */
+    remove_List();
 
     return 0;
 }
@@ -284,7 +300,6 @@ static void exit_nuevo(void) {
     *  We might need to remove /proc info in the future here
     */
     unregister_sched_plugin(&nuevo_plugin);
-    removeList();
     remove_proc_entry("fcfs_althm", NULL);
 }
 
