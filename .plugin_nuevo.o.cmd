@@ -825,15 +825,13 @@ deps_/home/bench/Carlos/plugins/plugin_sketch/plugin_nuevo.o := \
     $(wildcard include/config/x86/smap.h) \
   arch/x86/include/asm/extable.h \
   arch/x86/include/asm/uaccess_64.h \
-  include/litmus/sched_plugin.h \
-  include/litmus/locking.h \
   include/litmus/litmus.h \
     $(wildcard include/config/release/master.h) \
     $(wildcard include/config/allow/early/release.h) \
     $(wildcard include/config/litmus/quantum/length/us.h) \
   include/litmus/ctrlpage.h \
-  include/litmus/jobs.h \
-  include/litmus/budget.h \
+  include/litmus/sched_plugin.h \
+  include/litmus/locking.h \
   /home/bench/Carlos/plugins/plugin_sketch/list_jcsaez.h \
     $(wildcard include/config/list/sort.h) \
 

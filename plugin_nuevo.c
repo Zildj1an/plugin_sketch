@@ -9,17 +9,23 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>	/* copy_(from/to)_user */
 
-/* #include <some_libraries_TODO_API> */
+/*
 #include <litmus/preempt.h>
-#include <litmus/sched_plugin.h>
+#include <litmus/budget.h>
+// Functions for task state changes
+#include <litmus/jobs.h>
+#include <litmus/budget.h>
+*/
 
 #include <litmus/litmus.h>      /* API definitions       */
-#include <litmus/jobs.h>
-#include <litmus/budget.h>
+/*
+	#define get_partition(t) 	(tsk_rt(t)->task_params.cpu)
+	#define tsk_rt(t)		(&(t)->rt_param)
+	rt_param es un struct incluido en el task_struct(sched.h)
+*/
 
-/* Functions for task state changes*/
-#include <litmus/jobs.h>
-#include <litmus/budget.h>
+#include <litmus/sched_plugin.h>
+/* sched_plugin, register, unregister */
 
 /* Special ADT from Juan Carlos Saez */
 #include "list_jcsaez.h"
